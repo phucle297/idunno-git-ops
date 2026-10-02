@@ -1,0 +1,7 @@
+aws_region           = "ap-southeast-1"
+cluster_state_bucket = "REPLACE_WITH_TERRAFORM_STATE_BUCKET"
+app_hostname         = "english.example.com"
+acm_certificate_arn  = "arn:aws:acm:ap-southeast-1:123456789012:certificate/00000000-0000-0000-0000-000000000000"
+
+# Supply without writing it to disk:
+# export TF_VAR_git_ssh_private_key="$(cat ~/.ssh/idunno-flux)"

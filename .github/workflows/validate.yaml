@@ -1,0 +1,41 @@
+name: Validate infrastructure
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.16.4
+      - name: Terraform format
+        run: terraform fmt -check -recursive terraform
+      - name: Terraform validate
+        run: |
+          for directory in terraform/cluster terraform/platform; do
+            terraform -chdir="$directory" init -backend=false
+            terraform -chdir="$directory" validate
+          done
+      - name: Render Kubernetes manifests
+        env:
+          ECR_REPOSITORY: 123456789012.dkr.ecr.ap-southeast-1.amazonaws.com/idunno
+          APP_HOSTNAME: english.example.com
+          ACM_CERTIFICATE_ARN: arn:aws:acm:ap-southeast-1:123456789012:certificate/00000000-0000-0000-0000-000000000000
+        run: ./scripts/render-manifests.sh >/tmp/idunno-manifests.yaml
+      - name: Install kubeconform
+        run: |
+          curl --fail --silent --show-error --location \
+            https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz \
+            --output /tmp/kubeconform.tar.gz
+          echo '9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883  /tmp/kubeconform.tar.gz' | sha256sum --check
+          tar -xzf /tmp/kubeconform.tar.gz -C /usr/local/bin kubeconform
+      - name: Validate Kubernetes manifests
+        run: kubeconform -strict -summary -ignore-missing-schemas /tmp/idunno-manifests.yaml

@@ -1,0 +1,49 @@
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: idunno
+  namespace: flux-system
+spec:
+  image: ${ECR_REPOSITORY}
+  interval: 1m
+  provider: aws
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: idunno
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: idunno
+  filterTags:
+    pattern: '^main-(?P<timestamp>[0-9]{14})-[a-f0-9]{7}$'
+    extract: '$timestamp'
+  policy:
+    alphabetical:
+      order: asc
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageUpdateAutomation
+metadata:
+  name: idunno
+  namespace: flux-system
+spec:
+  interval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  git:
+    checkout:
+      ref:
+        branch: main
+    commit:
+      author:
+        name: flux-image-automation
+        email: flux@users.noreply.github.com
+      messageTemplate: 'deploy: update idunno image to {{range .Updated.Images}}{{println .}}{{end}}'
+    push:
+      branch: main
+  update:
+    path: ./clusters/production/apps/idunno
+    strategy: Setters
